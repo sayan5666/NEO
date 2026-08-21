@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: interview_gateway
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - INTERVIEW_SERVICE_URL=http://interview-service:5002
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8000
+    depends_on:
+      - auth-service
+      - interview-service
+      - ai-agent-service
+    networks:
+      - interview-network
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: interview_auth_service
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - MONGODB_URI=mongodb://mongodb:27017/ai_interview_auth
+      - JWT_SECRET=change_this_jwt_secret_in_production
+    depends_on:
+      - mongodb
+    networks:
+      - interview-network
+
+  interview-service:
+    build:
+      context: ./services/interview-service
+      dockerfile: Dockerfile
+    container_name: interview_session_service
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - MONGODB_URI=mongodb://mongodb:27017/ai_interview_db
+      - REDIS_URL=redis://redis:6379
+      - AI_AGENT_SERVICE_URL=http://ai-agent-service:8000
+    depends_on:
+      - mongodb
+      - redis
+      - ai-agent-service
+    networks:
+      - interview-network
+
+  ai-agent-service:
+    build:
+      context: ./services/ai-agent-service
+      dockerfile: Dockerfile
+    container_name: interview_ai_agent_service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      - redis
+    networks:
+      - interview-network
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: interview_payment_service
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    environment:
+      - PORT=5003
+      - MONGODB_URI=mongodb://mongodb:27017/ai_interview_payment
+      - JWT_SECRET=change_this_jwt_secret_in_production
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-rzp_secret_placeholder}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-rzp_webhook_placeholder}
+      - AUTH_SERVICE_URL=http://auth-service:5001
+    depends_on:
+      - mongodb
+    networks:
+      - interview-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: interview_client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:5000
+    depends_on:
+      - gateway
+    networks:
+      - interview-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: interview_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - interview-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: interview_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - interview-network
+
+networks:
+  interview-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:

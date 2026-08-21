@@ -1,0 +1,6 @@
+{
+  "name": "Multi-Agent AI Interview Platform",
+  "description": "Multi-agent AI interview platform microservices skeleton featuring API gateway, auth-service, interview-service, Python FastAPI ai-agent-service, MongoDB, Redis, and Docker Compose orchestration.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
